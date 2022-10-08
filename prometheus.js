@@ -23,15 +23,19 @@ const inverter = new SolisInverterClient(address, username, password)
 
 
 app.get('/metrics', async (req, res) => {
+    try {
+        const data = await inverter.fetchData();
 
-    const data = await inverter.fetchData();
+        let prometeus_metrics = `solis_current_power{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.power}\n`;
+        prometeus_metrics += `solis_yield_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.today}\n`;
+        prometeus_metrics += `solis_total_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.total}\n`;
 
-    let prometeus_metrics = `solis_current_power{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.power}\n`;
-    prometeus_metrics += `solis_yield_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.today}\n`;
-    prometeus_metrics += `solis_total_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.total}\n`;
-
-    res.setHeader('content-type', 'text/plain');
-    res.send(prometeus_metrics)
+        res.setHeader('content-type', 'text/plain');
+        res.send(prometeus_metrics)
+    } catch (error) {
+        res.setHeader('content-type', 'text/plain');
+        res.send("");
+    }
 })
 
 app.listen(port, () => {
