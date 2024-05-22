@@ -21,20 +21,45 @@ if (!port) {
 
 const inverter = new SolisInverterClient(address, username, password)
 
+let lastData = {
+    inverter: {
+        serial: "",
+        model: ""
+    },
+    power: 0,
+    energy: {
+        today: 0,
+        total: 0
+    }
+};
 
 app.get('/metrics', async (req, res) => {
     try {
         const data = await inverter.fetchData();
-
-        let prometeus_metrics = `solis_current_power{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.power}\n`;
-        prometeus_metrics += `solis_yield_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.today}\n`;
-        prometeus_metrics += `solis_total_today{inverter_serial="${data.inverter.serial}",inverter_model="${data.inverter.model}"} ${data.energy.total}\n`;
+        if (data) {
+            if (lastData.inverter.serial === "" || lastData.inverter.model === "") {
+                lastData.inverter = data.inverter;
+            }
+            lastData.power = data.power;
+            lastData.energy = data.energy;
+        }
+    } catch (error) {
+        if (lastData) {
+            lastData.power = 0;
+        }
+    }
+    
+    if (lastData) {
+        let prometeus_metrics = ""
+        prometeus_metrics += `solis_current_power{inverter_serial="${lastData.inverter.serial}",inverter_model="${lastData.inverter.model}"} ${lastData.power}\n`;
+        prometeus_metrics += `solis_yield_today{inverter_serial="${lastData.inverter.serial}",inverter_model="${lastData.inverter.model}"} ${lastData.energy.today}\n`;
+        prometeus_metrics += `solis_total_today{inverter_serial="${lastData.inverter.serial}",inverter_model="${lastData.inverter.model}"} ${lastData.energy.total}\n`;
 
         res.setHeader('content-type', 'text/plain');
         res.send(prometeus_metrics)
-    } catch (error) {
+    } else {
         res.setHeader('content-type', 'text/plain');
-        res.send("");
+        res.send("")
     }
 })
 
